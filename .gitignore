@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.pytest_cache/
+.coverage
+*.egg-info/
+
+# Environment — never commit real keys
+.env
+.env.local
+.env.*.local
+
+# Runtime data
+data/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env*
+
+# Logs
+*.log
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
