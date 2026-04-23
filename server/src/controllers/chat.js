@@ -1,13 +1,10 @@
-import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { MODEL_DEFAULTS } from '../config.js';
-import { getOrCreateSession, updateSession, appendTurn } from '../database.js';
+import { MODEL_DEFAULTS } from '../config/index.js';
+import { getOrCreateSession, updateSession, appendTurn } from '../services/session.js';
 import { PROVIDERS, getProvider } from '../ai/providers/index.js';
 import { queryStream, hasKnowledgeBase } from '../ai/rag/pipeline.js';
 
-const router = Router();
-
-router.post('/api/chat', async (req, res) => {
+export async function sendChat(req, res) {
   const { question, session_id, provider: reqProvider, model: reqModel, temperature = 0.3 } = req.body;
 
   if (!question?.trim()) {
@@ -15,12 +12,12 @@ router.post('/api/chat', async (req, res) => {
   }
 
   const sessionId = session_id || uuidv4();
-  const session   = getOrCreateSession(sessionId);
+  const session   = await getOrCreateSession(sessionId);
 
   const chosenProvider = reqProvider || session.provider || 'gemini';
   const chosenModel    = reqModel !== undefined ? reqModel : (session.model || MODEL_DEFAULTS[chosenProvider]);
 
-  updateSession(sessionId, { provider: chosenProvider, model: chosenModel });
+  await updateSession(sessionId, { provider: chosenProvider, model: chosenModel });
 
   const provider = getProvider(chosenProvider);
   if (!provider.isAvailable()) {
@@ -57,31 +54,29 @@ router.post('/api/chat', async (req, res) => {
     send('error', { message: String(e.message || e) });
   }
 
-  if (fullResponse && !hadError) appendTurn(sessionId, question, fullResponse);
+  if (fullResponse && !hadError) await appendTurn(sessionId, question, fullResponse);
 
-  res.write(`event: done\ndata: [DONE]\n\n`);
+  res.write('event: done\ndata: [DONE]\n\n');
   res.end();
-});
+}
 
-router.get('/api/chat/providers', async (req, res) => {
+export async function getProviders(_req, res) {
   const result = {};
   for (const [name, Provider] of Object.entries(PROVIDERS)) {
     const p = new Provider();
     result[name] = { available: await p.isAvailable(), models: p.models };
   }
   res.json(result);
-});
+}
 
-router.get('/api/chat/status', async (req, res) => {
+export async function getStatus(_req, res) {
   const providerStatus = {};
   for (const [name, Provider] of Object.entries(PROVIDERS)) {
     providerStatus[name] = await new Provider().isAvailable();
   }
   res.json({
-    has_kb:             hasKnowledgeBase(),
-    provider_status:    providerStatus,
+    has_kb:              hasKnowledgeBase(),
+    provider_status:     providerStatus,
     available_providers: Object.entries(providerStatus).filter(([, ok]) => ok).map(([n]) => n),
   });
-});
-
-export default router;
+}
