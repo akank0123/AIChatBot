@@ -1,12 +1,26 @@
 services:
 
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: Pa55WWord
+      MONGO_INITDB_DATABASE: ChatBot
+    volumes:
+      - mongo_data:/data/db
+
   backend:
     build: .
     ports:
       - "8000:8000"
     env_file: server/.env
+    environment:
+      MONGODB_URI: mongodb://root:Pa55WWord@mongodb:27017/ChatBot?authSource=admin
     volumes:
-      - ./data:/app/data        # persist sessions.db and hnswlib_index across restarts
+      - ./server/data:/app/server/data    # persist hnswlib_index across restarts
+    depends_on:
+      - mongodb
     restart: unless-stopped
 
   frontend:
@@ -18,3 +32,6 @@ services:
       - "5173:5173"
     command: sh -c "npm install && npm run dev -- --host"
     restart: unless-stopped
+
+volumes:
+  mongo_data:
