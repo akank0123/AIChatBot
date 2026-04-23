@@ -1,22 +1,17 @@
-FROM python:3.10-slim
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install uv
-RUN pip install uv --quiet
+# Copy package files first for layer caching
+COPY server/package*.json ./server/
 
-# Copy dependency files first (Docker layer caching — only reinstalls if these change)
-COPY pyproject.toml ./
+# Install server dependencies
+RUN cd server && npm install --legacy-peer-deps --omit=dev
 
-# Install production dependencies only
-RUN uv sync --no-dev
+# Copy server source
+COPY server/ ./server/
+COPY .env    ./.env
 
-# Copy source code
-COPY backend/ ./backend/
-COPY ai/      ./ai/
-COPY .env     ./.env
-
-# Expose port
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["node", "server/index.js"]

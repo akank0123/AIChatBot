@@ -6,7 +6,7 @@ services:
       - "8000:8000"
     env_file: .env
     volumes:
-      - ./data:/app/data        # persist sessions.db and faiss_index across restarts
+      - ./data:/app/data        # persist sessions.db and hnswlib_index across restarts
     restart: unless-stopped
 
   frontend:
