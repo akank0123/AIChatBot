@@ -23,6 +23,7 @@ def _get_embeddings():
         _EMBEDDINGS = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={"device": "cpu"},
+            encode_kwargs={"normalize_embeddings": True},
         )
     return _EMBEDDINGS
 
@@ -79,10 +80,11 @@ def add_documents(docs: List[Document]) -> int:
     return len(docs)
 
 
-def similarity_search(query: str, k: int = 6, threshold: float = 1.75) -> List[Document]:
-    """Return only chunks that are actually relevant to the query.
-    FAISS L2 distance: lower = more similar. Scores typically range 0.5–2.0.
-    threshold=1.75 keeps relevant matches and filters out truly unrelated questions.
+def similarity_search(query: str, k: int = 6, threshold: float = 1.70) -> List[Document]:
+    """Return only chunks relevant to the query using squared L2 on normalized vectors.
+    With normalized embeddings, squared L2 is bounded [0, 2.0]: lower = more similar.
+    threshold=1.70 cleanly separates document-relevant queries (≤1.65) from
+    unrelated queries like currency/weather (≥1.73).
     """
     if _STORE is None:
         return []

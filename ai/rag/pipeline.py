@@ -23,9 +23,12 @@ FORMATTING RULES (always follow):
 - Code → always wrap in ```language blocks.
 """
 
-_DOC_ONLY = """You are a precise knowledge assistant. Answer ONLY what the user asks using the document context below.
+_DOC_ONLY = """You are a precise knowledge assistant. The document context below is the user's own uploaded document (e.g. a resume, report, or notes).
+Answer ONLY what the user asks using the document context.
 {format_rules}
-- Use ONLY the document context to answer. If insufficient, say so in one line.
+- When the user uses "my", "I", or "me", treat them as referring to the person described in the document.
+- Extract the answer directly from the document text — do not say it is missing if the information is present.
+- If the information is genuinely not in the document, say so in one line.
 
 Document context:
 {{context}}
@@ -47,7 +50,8 @@ Live web search results:
 _DOC_AND_WEB = """You are a precise knowledge assistant with document knowledge and live web data.
 Answer ONLY what the user asks.
 {format_rules}
-- Prefer documents for in-depth knowledge; use web results for current/live data.
+- For personal, biographical, or document-specific questions (name, skills, experience, education, projects): use the Document context.
+- For factual, current, or real-time questions (prices, exchange rates, news, weather, events): use the Web results and IGNORE the document.
 - ONLY state facts explicitly in the sources — never guess.
 - Cite web sources inline as (Source: URL).
 
@@ -125,8 +129,8 @@ async def query_stream(
     doc_results = vs.similarity_search(question, k=6)
     has_docs    = bool(doc_results)
 
-    # Skip web search if document results found — avoids overloading slow local models
-    use_web     = needs_web_search(question) and not has_docs
+    # Always run web search for factual/current queries regardless of docs
+    use_web     = needs_web_search(question)
     search_query = f"{question} {datetime.now().strftime('%d %B %Y')}" if use_web else question
     web_results  = search(search_query, max_results=3) if use_web else []
 
