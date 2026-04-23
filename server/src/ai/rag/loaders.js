@@ -1,6 +1,6 @@
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { Document } from '@langchain/core/documents';
-import { CheerioWebBaseLoader } from '@langchain/community/document_loaders/web/cheerio';
+import { load as cheerioLoad } from 'cheerio';
 import { createRequire } from 'module';
 
 const require   = createRequire(import.meta.url);
@@ -30,12 +30,35 @@ export async function loadText(buffer, filename) {
   return splitter.splitDocuments([doc]);
 }
 
+const URL_TIMEOUT_MS  = 30_000;
+const URL_MAX_CHARS   = 150_000;
+const FETCH_UA        = 'Mozilla/5.0 (compatible; RAGChatBot/1.0; +https://github.com)';
+
 export async function loadUrl(url) {
-  const loader = new CheerioWebBaseLoader(url);
-  const docs   = await loader.load();
-  docs.forEach(doc => {
-    doc.metadata.source = url;
-    doc.metadata.type   = 'web';
-  });
-  return splitter.splitDocuments(docs);
+  const controller = new AbortController();
+  const timer      = setTimeout(() => controller.abort(), URL_TIMEOUT_MS);
+
+  let html;
+  try {
+    const response = await fetch(url, {
+      signal:  controller.signal,
+      headers: {
+        'User-Agent': FETCH_UA,
+        'Accept':     'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    html = await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const $    = cheerioLoad(html);
+  $('script, style, nav, header, footer, aside, noscript, iframe, [role="navigation"]').remove();
+  let text   = $('body').text().replace(/\s+/g, ' ').trim();
+
+  if (text.length > URL_MAX_CHARS) text = text.slice(0, URL_MAX_CHARS);
+
+  const doc = new Document({ pageContent: text, metadata: { source: url, type: 'web' } });
+  return splitter.splitDocuments([doc]);
 }

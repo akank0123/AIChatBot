@@ -13,7 +13,8 @@ let embeddings = null;
 function getEmbeddings() {
   if (!embeddings) {
     embeddings = new HuggingFaceTransformersEmbeddings({
-      model: 'Xenova/all-MiniLM-L6-v2',
+      model:     'Xenova/all-MiniLM-L6-v2',
+      batchSize: 32,
     });
   }
   return embeddings;
