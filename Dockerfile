@@ -10,7 +10,6 @@ RUN cd server && npm install --legacy-peer-deps --omit=dev
 
 # Copy server source
 COPY server/ ./server/
-COPY .env    ./.env
 
 EXPOSE 8000
 
