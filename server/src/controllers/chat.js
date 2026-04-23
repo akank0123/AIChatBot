@@ -52,7 +52,7 @@ export async function sendChat(req, res) {
   let hadError     = false;
 
   try {
-    for await (const token of queryStream(question, provider, history, chosenModel, temperature)) {
+    for await (const token of queryStream(question, provider, history, chosenModel, temperature, sessionId)) {
       if (res.writableEnded) break;
       if (token.startsWith('__SOURCES__:')) {
         const sources = token.replace('__SOURCES__:', '').split(',').filter(Boolean);
@@ -98,7 +98,7 @@ export async function getStatus(_req, res) {
     providerStatus[name] = await new Provider().isAvailable();
   }
   res.json({
-    has_kb:              hasKnowledgeBase(),
+    has_kb:              hasKnowledgeBase(req.query.session_id),
     provider_status:     providerStatus,
     available_providers: Object.entries(providerStatus).filter(([, ok]) => ok).map(([n]) => n),
   });

@@ -8,7 +8,6 @@ import express from 'express';
 import cors from 'cors';
 import { HOST, PORT, ALLOWED_ORIGINS } from './config/index.js';
 import connectDB from './config/database.js';
-import { loadPersisted } from './ai/rag/vectorstore.js';
 import chatRouter from './routes/chat.js';
 import sessionsRouter from './routes/sessions.js';
 import documentsRouter from './routes/documents.js';
@@ -32,7 +31,6 @@ app.use(errorHandler);
 
 async function start() {
   await connectDB();
-  await loadPersisted();
   app.listen(PORT, HOST, () => console.log(`RAG Chatbot server running at http://${HOST}:${PORT}`));
 }
 

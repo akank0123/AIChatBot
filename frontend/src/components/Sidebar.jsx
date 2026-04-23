@@ -39,7 +39,7 @@ export default function Sidebar({ provider, model, onProviderChange, onModelChan
           </section>
           <div className="divider" />
           <section className="sidebar-section">
-            <DocumentUploader onIngested={onIngested} />
+            <DocumentUploader sessionId={sessionId} onIngested={onIngested} />
           </section>
         </div>
       )}

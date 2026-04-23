@@ -90,8 +90,8 @@ function buildMessages(history, question, systemContent) {
 
 // ── Main pipeline ──────────────────────────────────────────────────────────────
 
-export async function* queryStream(question, provider, history, model = null, temperature = 0.3) {
-  const docResults = await vs.similaritySearch(question, 6);
+export async function* queryStream(question, provider, history, model = null, temperature = 0.3, sessionId) {
+  const docResults = await vs.similaritySearch(question, 6, 1.70, sessionId);
   const hasDocs    = docResults.length > 0;
 
   const useWeb   = needsWebSearch(question);
@@ -138,6 +138,6 @@ export async function* queryStream(question, provider, history, model = null, te
   if (sources.length) yield `__SOURCES__:${sources.join(',')}`;
 }
 
-export function hasKnowledgeBase() {
-  return vs.getStore() !== null;
+export function hasKnowledgeBase(sessionId) {
+  return vs.getStore(sessionId) !== null;
 }

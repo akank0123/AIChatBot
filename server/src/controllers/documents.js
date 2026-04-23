@@ -3,8 +3,15 @@ import { addDocuments, resetStore } from '../ai/rag/vectorstore.js';
 
 const ALLOWED_EXTS = new Set(['.pdf', '.txt', '.md', '.csv']);
 
+function getSessionId(req) {
+  return req.body?.session_id || req.query.session_id || req.headers['x-session-id'];
+}
+
 export async function uploadDocument(req, res) {
   try {
+    const sessionId = getSessionId(req);
+    if (!sessionId) return res.status(400).json({ detail: 'session_id is required' });
+
     const filename = req.file?.originalname || 'upload';
     const ext      = filename.includes('.') ? '.' + filename.split('.').pop().toLowerCase() : '';
 
@@ -16,7 +23,7 @@ export async function uploadDocument(req, res) {
       ? await loadPdf(req.file.buffer, filename)
       : await loadText(req.file.buffer, filename);
 
-    const count = await addDocuments(docs);
+    const count = await addDocuments(docs, sessionId);
     res.json({ message: `Ingested ${count} chunks from '${filename}'`, chunks: count });
   } catch (e) {
     res.status(500).json({ detail: String(e.message || e) });
@@ -25,10 +32,13 @@ export async function uploadDocument(req, res) {
 
 export async function addUrl(req, res) {
   try {
+    const sessionId = getSessionId(req);
+    if (!sessionId) return res.status(400).json({ detail: 'session_id is required' });
+
     const { url } = req.body;
     if (!url) return res.status(400).json({ detail: 'url is required' });
     const docs  = await loadUrl(url);
-    const count = await addDocuments(docs);
+    const count = await addDocuments(docs, sessionId);
     res.json({ message: `Ingested ${count} chunks from '${url}'`, chunks: count });
   } catch (e) {
     res.status(400).json({ detail: `Failed to load URL: ${e.message || e}` });
@@ -37,10 +47,13 @@ export async function addUrl(req, res) {
 
 export async function addText(req, res) {
   try {
+    const sessionId = getSessionId(req);
+    if (!sessionId) return res.status(400).json({ detail: 'session_id is required' });
+
     const { text, source = 'pasted-text' } = req.body;
     if (!text) return res.status(400).json({ detail: 'text is required' });
     const docs  = await loadText(Buffer.from(text, 'utf-8'), source);
-    const count = await addDocuments(docs);
+    const count = await addDocuments(docs, sessionId);
     res.json({ message: `Ingested ${count} chunks`, chunks: count });
   } catch (e) {
     res.status(500).json({ detail: String(e.message || e) });
@@ -48,6 +61,7 @@ export async function addText(req, res) {
 }
 
 export async function clearDocuments(req, res) {
-  resetStore();
+  const sessionId = getSessionId(req);
+  resetStore(sessionId || undefined);
   res.json({ message: 'Knowledge base cleared' });
 }

@@ -8,7 +8,7 @@ const TABS = [
   { id: 'text', label: 'Text', icon: FileText },
 ];
 
-export default function DocumentUploader({ onIngested }) {
+export default function DocumentUploader({ onIngested, sessionId }) {
   const [tab, setTab] = useState('file');
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
@@ -30,7 +30,7 @@ export default function DocumentUploader({ onIngested }) {
     setLoading(true);
     setProgress(0);
     try {
-      const res = await uploadFile(file, setProgress);
+      const res = await uploadFile(file, sessionId, setProgress);
       showStatus('success', res.message, { name: file.name, chunks: res.chunks, type: 'file' });
       onIngested?.();
       fileRef.current.value = '';
@@ -57,7 +57,7 @@ export default function DocumentUploader({ onIngested }) {
     if (!url.trim()) return;
     setLoading(true);
     try {
-      const res = await ingestURL(url.trim());
+      const res = await ingestURL(url.trim(), sessionId);
       showStatus('success', res.message, { name: url, chunks: res.chunks, type: 'url' });
       onIngested?.();
       setUrl('');
@@ -72,7 +72,7 @@ export default function DocumentUploader({ onIngested }) {
     if (!text.trim()) return;
     setLoading(true);
     try {
-      const res = await ingestText(text.trim());
+      const res = await ingestText(text.trim(), sessionId);
       showStatus('success', res.message, { name: 'Pasted text', chunks: res.chunks, type: 'text' });
       onIngested?.();
       setText('');
@@ -86,7 +86,7 @@ export default function DocumentUploader({ onIngested }) {
   const handleClear = async () => {
     if (!window.confirm('Clear the entire knowledge base?')) return;
     try {
-      await clearKnowledgeBase();
+      await clearKnowledgeBase(sessionId);
       setIngestedDocs([]);
       showStatus('success', 'Knowledge base cleared');
     } catch (err) {

@@ -1,4 +1,5 @@
 import Session from '../models/Session.js';
+import { resetStore } from '../ai/rag/vectorstore.js';
 
 function toPlain(doc) {
   return {
@@ -47,4 +48,5 @@ export async function appendTurn(sessionId, human, ai) {
 
 export async function deleteSession(sessionId) {
   await Session.deleteOne({ sessionId });
+  resetStore(sessionId);
 }

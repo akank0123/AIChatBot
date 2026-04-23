@@ -1,13 +1,7 @@
 import { HNSWLib } from '@langchain/community/vectorstores/hnswlib';
 import { HuggingFaceTransformersEmbeddings } from '@langchain/community/embeddings/huggingface_transformers';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, rmSync } from 'fs';
 
-const __dirname  = dirname(fileURLToPath(import.meta.url));
-const INDEX_PATH = join(__dirname, '..', '..', '..', 'data', 'hnswlib_index');
-
-let store      = null;
+const stores = new Map(); // sessionId -> HNSWLib instance
 let embeddings = null;
 
 function getEmbeddings() {
@@ -20,34 +14,22 @@ function getEmbeddings() {
   return embeddings;
 }
 
-export function getStore() { return store; }
-
-export async function loadPersisted() {
-  const indexFile = join(INDEX_PATH, 'hnswlib.index');
-  if (existsSync(indexFile)) {
-    try {
-      store = await HNSWLib.load(INDEX_PATH, getEmbeddings());
-      console.log('Vector store loaded from disk.');
-    } catch {
-      store = null;
-    }
-  }
+export function getStore(sessionId) {
+  return stores.get(sessionId) ?? null;
 }
 
-export async function addDocuments(docs) {
+export async function addDocuments(docs, sessionId) {
   const emb = getEmbeddings();
-  if (!store) {
-    store = await HNSWLib.fromDocuments(docs, emb);
+  if (!stores.has(sessionId)) {
+    stores.set(sessionId, await HNSWLib.fromDocuments(docs, emb));
   } else {
-    await store.addDocuments(docs);
+    await stores.get(sessionId).addDocuments(docs);
   }
-  mkdirSync(INDEX_PATH, { recursive: true });
-  await store.save(INDEX_PATH);
   return docs.length;
 }
 
-// HNSWLib with L2 space returns squared L2 — same scale as Python FAISS
-export async function similaritySearch(query, k = 6, threshold = 1.70) {
+export async function similaritySearch(query, k = 6, threshold = 1.70, sessionId) {
+  const store = stores.get(sessionId);
   if (!store) return [];
   try {
     const results = await store.similaritySearchWithScore(query, k);
@@ -58,9 +40,10 @@ export async function similaritySearch(query, k = 6, threshold = 1.70) {
   }
 }
 
-export function resetStore() {
-  store = null;
-  if (existsSync(INDEX_PATH)) {
-    rmSync(INDEX_PATH, { recursive: true, force: true });
+export function resetStore(sessionId) {
+  if (sessionId) {
+    stores.delete(sessionId);
+  } else {
+    stores.clear();
   }
 }

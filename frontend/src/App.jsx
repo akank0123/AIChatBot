@@ -5,7 +5,7 @@ import ChatInterface from './components/ChatInterface';
 export default function App() {
   const [provider, setProvider] = useState('openai');
   const [model, setModel] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [kbVersion, setKbVersion] = useState(0); // bumped on each ingest
 
   return (
