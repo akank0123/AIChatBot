@@ -48,8 +48,13 @@ export async function addDocuments(docs) {
 // HNSWLib with L2 space returns squared L2 — same scale as Python FAISS
 export async function similaritySearch(query, k = 6, threshold = 1.70) {
   if (!store) return [];
-  const results = await store.similaritySearchWithScore(query, k);
-  return results.filter(([, score]) => score <= threshold).map(([doc]) => doc);
+  try {
+    const results = await store.similaritySearchWithScore(query, k);
+    return results.filter(([, score]) => score <= threshold).map(([doc]) => doc);
+  } catch (e) {
+    console.error('[vectorstore] similaritySearch error:', e.message || e);
+    return [];
+  }
 }
 
 export function resetStore() {

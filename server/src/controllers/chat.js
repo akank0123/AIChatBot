@@ -28,11 +28,23 @@ export async function sendChat(req, res) {
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.setHeader('X-Session-Id', sessionId);
   res.flushHeaders();
 
-  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  const send = (event, data) => {
+    if (!res.writableEnded) {
+      try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch {}
+    }
+  };
+
+  // Keep the chunked connection alive while embeddings / LLM are initialising.
+  const heartbeat = setInterval(() => {
+    if (res.writableEnded) { clearInterval(heartbeat); return; }
+    try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
+  }, 15000);
+  req.on('close', () => clearInterval(heartbeat));
 
   send('session', { session_id: sessionId });
 
@@ -41,6 +53,7 @@ export async function sendChat(req, res) {
 
   try {
     for await (const token of queryStream(question, provider, history, chosenModel, temperature)) {
+      if (res.writableEnded) break;
       if (token.startsWith('__SOURCES__:')) {
         const sources = token.replace('__SOURCES__:', '').split(',').filter(Boolean);
         send('sources', { sources });
@@ -52,12 +65,22 @@ export async function sendChat(req, res) {
   } catch (e) {
     hadError = true;
     send('error', { message: String(e.message || e) });
+  } finally {
+    clearInterval(heartbeat);
   }
 
-  if (fullResponse && !hadError) await appendTurn(sessionId, question, fullResponse);
+  try {
+    if (fullResponse && !hadError) await appendTurn(sessionId, question, fullResponse);
+  } catch (e) {
+    console.error('[chat] appendTurn error:', e.message || e);
+  }
 
-  res.write('event: done\ndata: [DONE]\n\n');
-  res.end();
+  if (!res.writableEnded) {
+    try {
+      res.write('event: done\ndata: [DONE]\n\n');
+      res.end();
+    } catch {}
+  }
 }
 
 export async function getProviders(_req, res) {

@@ -1,4 +1,9 @@
 import 'dotenv/config';
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] Unhandled promise rejection:', reason);
+});
+
 import express from 'express';
 import cors from 'cors';
 import { HOST, PORT, ALLOWED_ORIGINS } from './config/index.js';
