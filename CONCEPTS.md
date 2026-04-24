@@ -28,6 +28,37 @@ A chatbot where you upload your own documents (PDF, URL, or text), and then ask 
 
 **In this project:** Uploaded document chunks are converted to vectors and saved here. When you ask a question, the question is also converted to a vector and the store returns the most similar document chunks.
 
+**How the integration works:**
+
+```
+Document uploaded
+      ↓
+Split into chunks  →  Convert each chunk to 384-number vector (all-MiniLM-L6-v2 model)
+      ↓
+Store vectors in HNSWLib  →  one Map entry per sessionId  →  sessions stay isolated
+
+User asks a question
+      ↓
+Convert question to vector  →  similaritySearch(question, k=6, threshold=1.70, sessionId)
+      ↓
+Return top 6 chunks with score ≤ 1.70  →  anything above 1.70 is ignored (not relevant)
+      ↓
+Pass chunks to AI as context
+
+Session deleted
+      ↓
+stores.delete(sessionId)  →  that session's vector data is removed from memory
+```
+
+| Key Point | Detail |
+|---|---|
+| Storage | In-memory — data lives in RAM, lost if server restarts |
+| Per-session isolation | `const stores = new Map()` — each session gets its own HNSWLib instance |
+| Embedding model | `Xenova/all-MiniLM-L6-v2` — runs locally, no API key needed |
+| Results | Top 6 chunks, score must be ≤ 1.70 to be considered relevant |
+| Threshold 1.70 | Lower score = more similar. Above 1.70 = too different = ignored |
+| Limitation | Vectors lost on server restart — Pinecone (cloud) would solve this |
+
 ---
 
 ### Embeddings
@@ -122,21 +153,53 @@ A chatbot where you upload your own documents (PDF, URL, or text), and then ask 
 
 ## How a Single Chat Message Flows Through the System
 
-| Step | What happens | File | Function |
-|---|---|---|---|
-| 1 | User types a message and hits send | `frontend/src/hooks/useChat.js` | `sendMessage()` |
-| 2 | Frontend opens an SSE stream request to the backend | `frontend/src/services/chatApi.js` | `streamChat()` |
-| 3 | Express routes it to the chat controller | `server/src/routes/chat.js` | router → POST `/api/chat` |
-| 4 | Controller reads the session + history from MongoDB | `server/src/controllers/chat.js` | `sendChat()` → calls `getOrCreateSession()` |
-| 5 | `getOrCreateSession` fetches or creates session in MongoDB | `server/src/services/session.js` | `getOrCreateSession()` |
-| 6 | RAG pipeline starts — question is converted to an embedding | `server/src/ai/rag/vectorstore.js` | `similaritySearch()` → calls `getEmbeddings()` internally |
-| 7 | Vector store searches for relevant document chunks for this session | `server/src/ai/rag/vectorstore.js` | `similaritySearch(question, 6, 1.70, sessionId)` |
-| 8 | If no chunks found, checks if web search is needed | `server/src/ai/rag/webSearch.js` | `needsWebSearch(question)` |
-| 9 | If web search needed, calls SerpAPI and returns top results | `server/src/ai/rag/webSearch.js` | `search(query, 3)` → internally calls `searchWeb()` or `searchNews()` |
-| 10 | Chunks or web results + history + question are assembled into a prompt | `server/src/ai/rag/pipeline.js` | `queryStream()` → calls `buildMessages()` |
-| 11 | Prompt is sent to the chosen LLM and tokens start streaming | `server/src/ai/rag/pipeline.js` | `queryStream()` → `provider.getLlm()` → async generator yields tokens |
-| 12 | Each token is pushed to the browser over SSE | `server/src/controllers/chat.js` | `sendChat()` → `send('token', token)` inside the `for await` loop |
-| 13 | Frontend reads each token and appends it to the message | `frontend/src/services/chatApi.js` | `streamChat()` → `reader.read()` loop → `onToken()` callback |
-| 14 | React re-renders on each new token — user sees words appearing live | `frontend/src/hooks/useChat.js` | `useChat()` → `setMessages()` inside the stream loop |
-| 15 | Once stream ends, full Q&A is saved to MongoDB | `server/src/controllers/chat.js` | `sendChat()` → calls `appendTurn(sessionId, question, fullAnswer)` |
-| 16 | `appendTurn` pushes the message pair into the session history | `server/src/services/session.js` | `appendTurn(sessionId, human, ai)` |
+```
+[1] You type a message & press send
+        useChat.js → sendMessage()
+
+[2] Frontend opens SSE stream to backend
+        chatApi.js → streamChat()
+
+[3] Express routes the request
+        routes/chat.js → POST /api/chat
+
+[4] Chat controller takes over
+        controllers/chat.js → sendChat()
+
+[5] Load session + chat history from MongoDB
+        services/session.js → getOrCreateSession()
+
+[6] Convert question into a vector (embedding)
+        vectorstore.js → similaritySearch() → getEmbeddings()
+
+[7] Search uploaded document chunks for this session
+        vectorstore.js → similaritySearch(question, 6, 1.70, sessionId)
+
+[8] No relevant chunks? Check if web search is needed
+        webSearch.js → needsWebSearch(question)
+
+[9] If yes → run live Google search via SerpAPI
+        webSearch.js → search(query, 3) → searchWeb() or searchNews()
+
+[10] Build the final prompt
+         pipeline.js → queryStream() → buildMessages()
+         ( chunks or web results + last 10 messages + question )
+
+[11] Send prompt to the chosen AI — tokens start coming back
+         pipeline.js → queryStream() → provider.getLlm()
+
+[12] Push each token to browser over SSE immediately
+         controllers/chat.js → sendChat() → send('token', token)
+
+[13] Frontend reads each token from the stream
+         chatApi.js → streamChat() → reader.read() → onToken()
+
+[14] React appends each token — you see words appear live
+         useChat.js → useChat() → setMessages()
+
+[15] Stream ends → save full Q&A to MongoDB
+         controllers/chat.js → sendChat() → appendTurn()
+
+[16] Store message pair in session history
+         services/session.js → appendTurn(sessionId, human, ai)
+```
