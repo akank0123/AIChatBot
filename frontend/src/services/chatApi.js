@@ -1,9 +1,11 @@
+// The Streaming HTTP Connection
+
 const BASE = '/api';
 
 export function streamChat({ question, session_id, provider, model, temperature = 0.3 }, callbacks) {
   const { onToken, onDone, onError, onSources, onSession } = callbacks;
   const controller = new AbortController();
-
+  // Sends POST /api/chat with { question, session_id, provider, model, temperature }
   fetch(`${BASE}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -17,7 +19,7 @@ export function streamChat({ question, session_id, provider, model, temperature 
         return;
       }
 
-      const reader = res.body.getReader();
+      const reader = res.body.getReader(); // Gets a stream reader from the response body instead of waiting for the full response
       const decoder = new TextDecoder();
       let buffer = '';
 

@@ -1,11 +1,17 @@
+// Web Search Decision
+
 import axios from 'axios';
 
 const SERPAPI_KEY = process.env.SERPAPI_KEY || '';
 
+// Skips web search for greetings, personal document questions, "who am I" type questions
 const NO_SEARCH = /^(hi|hello|hey|thanks|thank you|bye|ok|okay|sure|who are you|what are you|what can you do|help me|how are you|good morning|good night|what is your name|what is my|who am i|tell me about me|what are my|where am i from|my name|my email|my phone|my skills|my experience|my education|summarize my|what do i|where do i|who is this|tell me about this document|summarize this|summarize the|what does this|explain this document)\b/i;
+// Skips web search for math/calculation questions
 const MATH_PAT  = /^(calculate|compute|solve|what is \d|simplify|convert \d)/i;
+// news/sports/election keywords
 const NEWS_PAT  = /\b(news|headline|headlines|breaking|sports news|cricket|football|ipl|match|tournament|election|politics|top stories|what happened)\b/i;
 
+// Returns true if the question needs live data, false for anything local/personal/math
 export function needsWebSearch(question) {
   const q = question.trim();
   if (NO_SEARCH.test(q)) return false;
@@ -14,10 +20,12 @@ export function needsWebSearch(question) {
   return true;
 }
 
+// Detects news/sports/election keywords to route to Google News instead of regular searc
 function isNewsQuery(question) {
   return NEWS_PAT.test(question);
 }
 
+// Calls SerpAPI Google search, extracts answer box + organic results
 async function searchWeb(query, maxResults = 5) {
   try {
     const { data } = await axios.get('https://serpapi.com/search', {
@@ -43,6 +51,7 @@ async function searchWeb(query, maxResults = 5) {
   }
 }
 
+// Calls SerpAPI Google News specifically for news queries
 async function searchNews(query, maxResults = 6) {
   try {
     const { data } = await axios.get('https://serpapi.com/search', {
@@ -59,6 +68,7 @@ async function searchNews(query, maxResults = 6) {
   }
 }
 
+// Entry point: picks news or web search based on query type 
 export async function search(query, maxResults = 5) {
   return isNewsQuery(query) ? searchNews(query, maxResults) : searchWeb(query, maxResults);
 }

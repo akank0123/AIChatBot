@@ -1,3 +1,5 @@
+// The RAG Pipeline ( The Brain )
+
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import * as vs from './vectorstore.js';
 import { needsWebSearch, search, formatResults } from './webSearch.js';
@@ -16,6 +18,7 @@ FORMATTING RULES (always follow):
 - Code → always wrap in \`\`\`language blocks.
 `;
 
+// Tells LLM to answer only from uploaded document context
 const DOC_ONLY = (context) => `You are a precise knowledge assistant. The document context below is the user's own uploaded document.
 Answer ONLY what the user asks using the document context.
 ${FORMAT_RULES}
@@ -26,6 +29,7 @@ ${FORMAT_RULES}
 Document context:
 ${context}`;
 
+// Tells LLM to answer only from live web search results
 const WEB_ONLY = (context) => `You are a precise, up-to-date assistant with access to live web search results.
 Answer ONLY what the user asks using the search results below.
 ${FORMAT_RULES}
@@ -36,6 +40,7 @@ ${FORMAT_RULES}
 Live web search results:
 ${context}`;
 
+// Uses both; document for personal questions, web for current facts
 const DOC_AND_WEB = (docCtx, webCtx) => `You are a precise knowledge assistant with document knowledge and live web data.
 Answer ONLY what the user asks.
 ${FORMAT_RULES}
@@ -50,6 +55,7 @@ ${docCtx}
 Live web search results:
 ${webCtx}`;
 
+// Plain AI assistant when no context found
 const GENERAL = `You are a precise, helpful AI assistant. Answer ONLY what the user asks.
 ${FORMAT_RULES}
 - Do not pad, repeat, or add unrequested information.
@@ -57,6 +63,7 @@ ${FORMAT_RULES}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+// Prepends current date and time to every system prompt
 function contextHeader() {
   const now  = new Date();
   const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -78,6 +85,7 @@ function formatDocs(docs) {
   return docs.map((doc, i) => `[${i + 1}] (source: ${doc.metadata?.source || 'unknown'})\n${doc.pageContent}`).join('\n\n---\n\n');
 }
 
+// Builds the full LLM message list: system prompt + last 10 turns of history + current question
 function buildMessages(history, question, systemContent) {
   const msgs = [new SystemMessage(systemContent)];
   for (const turn of history.slice(-10)) {
@@ -91,7 +99,7 @@ function buildMessages(history, question, systemContent) {
 // ── Main pipeline ──────────────────────────────────────────────────────────────
 
 export async function* queryStream(question, provider, history, model = null, temperature = 0.3, sessionId) {
-  const docResults = await vs.similaritySearch(question, 6, 1.70, sessionId);
+  const docResults = await vs.similaritySearch(question, 6, 1.70, sessionId); //  Searches the vector store for document chunks related to the question (max 6 results)
   const hasDocs    = docResults.length > 0;
 
   const useWeb   = needsWebSearch(question);
@@ -104,6 +112,7 @@ export async function* queryStream(question, provider, history, model = null, te
   let systemContent;
   let sources = [];
 
+  // Picks the right system prompt based on what was found: DOC_ONLY, WEB_ONLY, DOC_AND_WEB, or GENERAL
   if (hasDocs && hasWeb) {
     systemContent = DOC_AND_WEB(formatDocs(docResults), formatResults(webResults));
     sources = [
@@ -128,14 +137,15 @@ export async function* queryStream(question, provider, history, model = null, te
 
   const llm      = provider.getLlm(llmOpts);
   const messages = buildMessages(history, question, systemContent);
-
+  
+  // Calls llm.stream(messages) — gets a token-by-token stream from OpenAI/Gemini/Llama, yields each token up to the controller
   const stream = await llm.stream(messages);
   for await (const chunk of stream) {
     const token = extractText(chunk.content);
     if (token) yield token;
   }
 
-  if (sources.length) yield `__SOURCES__:${sources.join(',')}`;
+  if (sources.length) yield `__SOURCES__:${sources.join(',')}`; // After all tokens, yields __SOURCES__:url1,url2 as a single special token
 }
 
 export function hasKnowledgeBase(sessionId) {

@@ -1,3 +1,5 @@
+// Backend recieves the Request
+
 import { v4 as uuidv4 } from 'uuid';
 import { MODEL_DEFAULTS } from '../config/index.js';
 import { getOrCreateSession, updateSession, appendTurn } from '../services/session.js';
@@ -5,15 +7,18 @@ import { PROVIDERS, getProvider } from '../ai/providers/index.js';
 import { queryStream, hasKnowledgeBase } from '../ai/rag/pipeline.js';
 
 export async function sendChat(req, res) {
+  // Extracts question, session_id, provider, model, temperature from the request body
   const { question, session_id, provider: reqProvider, model: reqModel, temperature = 0.3 } = req.body;
 
   if (!question?.trim()) {
     return res.status(400).json({ detail: 'question is required' });
   }
 
+  // Creates a new session in MongoDB if session_id is not provided 
   const sessionId = session_id || uuidv4();
   const session   = await getOrCreateSession(sessionId);
 
+  // Decides which AI provider and model to use (from request or saved session)
   const chosenProvider = reqProvider || session.provider || 'gemini';
   const chosenModel    = reqModel !== undefined ? reqModel : (session.model || MODEL_DEFAULTS[chosenProvider]);
 
@@ -26,6 +31,7 @@ export async function sendChat(req, res) {
 
   const history = session.history || [];
 
+  // Sets SSE headers — tells the browser this is a streaming response, not a normal one
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -39,7 +45,7 @@ export async function sendChat(req, res) {
     }
   };
 
-  // Keep the chunked connection alive while embeddings / LLM are initialising.
+  //  Heartbeat ping every 15 seconds — keeps the chunked connection alive while the AI is loading
   const heartbeat = setInterval(() => {
     if (res.writableEnded) { clearInterval(heartbeat); return; }
     try { res.write(': heartbeat\n\n'); } catch { clearInterval(heartbeat); }
@@ -52,6 +58,7 @@ export async function sendChat(req, res) {
   let hadError     = false;
 
   try {
+    // Starts iterating over queryStream(...) — each yield from the pipeline comes back here as a token
     for await (const token of queryStream(question, provider, history, chosenModel, temperature, sessionId)) {
       if (res.writableEnded) break;
       if (token.startsWith('__SOURCES__:')) {
@@ -70,11 +77,13 @@ export async function sendChat(req, res) {
   }
 
   try {
+    // After all tokens done → saves the full Q&A turn to MongoDB
     if (fullResponse && !hadError) await appendTurn(sessionId, question, fullResponse);
   } catch (e) {
     console.error('[chat] appendTurn error:', e.message || e);
   }
 
+  // Sends done event and closes the response
   if (!res.writableEnded) {
     try {
       res.write('event: done\ndata: [DONE]\n\n');

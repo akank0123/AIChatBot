@@ -1,9 +1,12 @@
+// Vector Search ( Your Uploaded Documents)
+
 import { HNSWLib } from '@langchain/community/vectorstores/hnswlib';
 import { HuggingFaceTransformersEmbeddings } from '@langchain/community/embeddings/huggingface_transformers';
 
 const stores = new Map(); // sessionId -> HNSWLib instance
 let embeddings = null;
 
+// Loads the all-MiniLM-L6-v2 model (runs locally, no API needed) to convert text into vectors
 function getEmbeddings() {
   if (!embeddings) {
     embeddings = new HuggingFaceTransformersEmbeddings({
@@ -18,6 +21,7 @@ export function getStore(sessionId) {
   return stores.get(sessionId) ?? null;
 }
 
+// When we upload a file, its chunks are embedded and stored here
 export async function addDocuments(docs, sessionId) {
   const emb = getEmbeddings();
   if (!stores.has(sessionId)) {
@@ -28,6 +32,7 @@ export async function addDocuments(docs, sessionId) {
   return docs.length;
 }
 
+// Converts your question to a vector, finds the closest document chunks (threshold 1.70), returns matching text
 export async function similaritySearch(query, k = 6, threshold = 1.70, sessionId) {
   const store = stores.get(sessionId);
   if (!store) return [];
@@ -40,6 +45,7 @@ export async function similaritySearch(query, k = 6, threshold = 1.70, sessionId
   }
 }
 
+// Clears a session's vector index when session is deleted
 export function resetStore(sessionId) {
   if (sessionId) {
     stores.delete(sessionId);

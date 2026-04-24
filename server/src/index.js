@@ -16,9 +16,10 @@ import errorHandler from './middlewares/errorHandler.js';
 
 const app = express();
 
-app.use(cors({ origin: ALLOWED_ORIGINS, exposedHeaders: ['X-Session-Id'] }));
+app.use(cors({ origin: ALLOWED_ORIGINS, exposedHeaders: ['X-Session-Id'] })); // Sets up CORS — allows the React frontend (port 5173) to talk to the backend 
 app.use(express.json());
 
+// Register all routes on Express app
 app.use(chatRouter);
 app.use(sessionsRouter);
 app.use(documentsRouter);

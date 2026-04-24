@@ -5,6 +5,7 @@ import { Bot } from 'lucide-react';
 export default function MessageList({ messages, streaming }) {
   const bottomRef = useRef(null);
 
+  // Auto-scrolls to the bottom every time messages changes (every token = scroll)
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
@@ -38,6 +39,7 @@ export default function MessageList({ messages, streaming }) {
 
   return (
     <div className="message-list">
+      {/* Renders each message through MessageItem */}
       {messages.map((msg, i) => (
         <MessageItem
           key={msg.id}

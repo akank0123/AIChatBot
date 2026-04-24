@@ -23,3 +23,6 @@ frontend/.env*
 .idea/
 *.swp
 *.swo
+
+#Files
+PROJECT_GUIDE.md

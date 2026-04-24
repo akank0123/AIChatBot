@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+// Each history turn is { human: "user question", ai: "AI answer" }
 const turnSchema = new mongoose.Schema(
   { human: { type: String, required: true }, ai: { type: String, required: true } },
   { _id: false }

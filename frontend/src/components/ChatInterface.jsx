@@ -16,11 +16,13 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
   const [showTemp, setShowTemp] = useState(false);
   const textareaRef = useRef(null);
 
+  // Calls useChat hooks - gets messages, streaming flag, sendMessage, stopStreaming
   const { messages, streaming, error, sendMessage, stopStreaming, clearMessages } = useChat(
     sessionId,
     setSessionId
   );
 
+  // Auto-resizes the textarea as user types (grows up to 160px tall)
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -28,6 +30,7 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
     ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
   }, [input]);
 
+  // trims input, calls sendMessage(), clears the input box
   const handleSend = () => {
     const q = input.trim();
     if (!q || streaming) return;
@@ -35,6 +38,7 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
     setInput('');
   };
 
+  // pressing Enter (without Shift) triggers handleSend()
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
