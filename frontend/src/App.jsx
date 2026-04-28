@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Brain, Menu } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 
@@ -6,37 +7,57 @@ export default function App() {
   const [provider, setProvider] = useState('openai');
   const [model, setModel] = useState(null);
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
-  const [kbVersion, setKbVersion] = useState(0); // bumped on each ingest
+  const [kbVersion, setKbVersion] = useState(0);
 
   return (
     <div className="app-shell">
-      <Sidebar
-        provider={provider}
-        model={model}
-        onProviderChange={setProvider}
-        onModelChange={setModel}
-        sessionId={sessionId}
-        onIngested={() => setKbVersion(v => v + 1)}
-      />
+      {/* Mobile-only top navbar */}
+      <nav className="navbar mobile-navbar d-lg-none">
+        <div className="container-fluid px-3">
+          <div className="d-flex align-items-center gap-2">
+            <button
+              className="icon-btn me-1"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sidebarOffcanvas"
+              aria-controls="sidebarOffcanvas"
+              aria-label="Open sidebar"
+            >
+              <Menu size={17} />
+            </button>
+            <a className="mobile-nav-brand" href="#">
+              <div className="logo-icon" style={{ width: 28, height: 28, borderRadius: 7 }}>
+                <Brain size={15} />
+              </div>
+              <span className="fw-bold fs-6">RAG<span className="accent">Bot</span></span>
+            </a>
+          </div>
+          <span className="session-badge">{sessionId.slice(0, 8)}…</span>
+        </div>
+      </nav>
 
-      <main className="main-area">
-        <ChatInterface
-          key={sessionId}  // remount when session changes
-          sessionId={sessionId}
-          setSessionId={setSessionId}
+      {/* Sidebar + chat */}
+      <div className="app-body">
+        <Sidebar
           provider={provider}
           model={model}
-          kbVersion={kbVersion}
+          onProviderChange={setProvider}
+          onModelChange={setModel}
+          sessionId={sessionId}
+          onIngested={() => setKbVersion(v => v + 1)}
         />
-      </main>
 
-      <style>{`
-        .app-shell {
-          height: 100vh; display: flex; overflow: hidden;
-          background: var(--bg-primary);
-        }
-        .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-      `}</style>
+        <main className="flex-grow-1 d-flex flex-column overflow-hidden">
+          <ChatInterface
+            key={sessionId}
+            sessionId={sessionId}
+            setSessionId={setSessionId}
+            provider={provider}
+            model={model}
+            kbVersion={kbVersion}
+          />
+        </main>
+      </div>
     </div>
   );
 }

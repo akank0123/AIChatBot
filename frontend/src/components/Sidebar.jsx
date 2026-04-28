@@ -1,74 +1,71 @@
-import { useState } from 'react';
-import { Brain, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import ProviderSelector from './ProviderSelector';
 import DocumentUploader from './DocumentUploader';
 
 export default function Sidebar({ provider, model, onProviderChange, onModelChange, sessionId, onIngested }) {
-  const [collapsed, setCollapsed] = useState(false);
-
   return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-header">
-        {!collapsed && (
-          <>
-            <div className="logo">
-              <Brain size={20} />
-              <span className="logo-text">RAG<span className="logo-accent">Bot</span></span>
-            </div>
-            {sessionId && (
-              <span className="session-badge" title={sessionId}>
-                Session: {sessionId.slice(0, 8)}…
-              </span>
-            )}
-          </>
-        )}
-        <button className="collapse-btn" onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
+    <div
+      className="offcanvas offcanvas-lg offcanvas-start app-sidebar"
+      tabIndex="-1"
+      id="sidebarOffcanvas"
+      aria-labelledby="sidebarLabel"
+    >
+      {/* Accent gradient strip */}
+      <div className="sidebar-accent-strip" />
+
+      {/* Offcanvas header — mobile only (hidden on lg+ via CSS) */}
+      <div
+        className="offcanvas-header"
+        style={{ borderBottom: '1px solid var(--border-dim)', padding: '14px 18px', background: 'linear-gradient(180deg, rgba(157,124,250,0.06) 0%, transparent 100%)' }}
+      >
+        <div className="logo-wrap">
+          <div className="logo-icon">
+            <Brain size={18} />
+          </div>
+          <h5 className="logo-title mb-0" id="sidebarLabel">
+            RAG<span className="accent">Bot</span>
+          </h5>
+        </div>
+        <div className="d-flex align-items-center gap-2">
+          {sessionId && <span className="session-badge">{sessionId.slice(0, 8)}…</span>}
+          <button
+            type="button"
+            className="btn-close btn-close-sidebar"
+            data-bs-dismiss="offcanvas"
+            aria-label="Close"
+          />
+        </div>
       </div>
 
-      {!collapsed && (
-        <div className="sidebar-body">
-          <section className="sidebar-section">
-            <ProviderSelector
-              provider={provider}
-              model={model}
-              onProviderChange={onProviderChange}
-              onModelChange={onModelChange}
-            />
-          </section>
-          <div className="divider" />
-          <section className="sidebar-section">
-            <DocumentUploader sessionId={sessionId} onIngested={onIngested} />
-          </section>
+      {/* Desktop-only header (hidden on mobile via d-none d-lg-flex) */}
+      <div className="sidebar-header d-none d-lg-flex">
+        <div className="logo-wrap">
+          <div className="logo-icon">
+            <Brain size={18} />
+          </div>
+          <span className="logo-title">RAG<span className="accent">Bot</span></span>
         </div>
-      )}
+        {sessionId && <span className="session-badge">{sessionId.slice(0, 8)}…</span>}
+      </div>
 
-      <style>{`
-        .sidebar {
-          width: 300px; flex-shrink: 0;
-          background: var(--bg-secondary);
-          border-right: 1px solid var(--border);
-          display: flex; flex-direction: column;
-          transition: width 0.2s ease;
-          overflow: hidden;
-        }
-        .sidebar.collapsed { width: 48px; }
-        .sidebar-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 14px; border-bottom: 1px solid var(--border);
-          gap: 8px; min-height: 54px;
-        }
-        .logo { display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
-        .logo-text { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
-        .logo-accent { color: var(--accent); }
-        .session-badge { font-size: 10px; color: var(--text-muted); background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
-        .collapse-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.15s; }
-        .collapse-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .sidebar-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0; }
-        .sidebar-section { padding: 16px; }
-        .divider { height: 1px; background: var(--border); margin: 0 16px; }
-      `}</style>
-    </aside>
+      {/* Body */}
+      <div className="sidebar-body offcanvas-body p-0">
+        {/* Provider section */}
+        <div className="sidebar-section" style={{ borderBottom: '1px solid var(--border-dim)' }}>
+          <p className="sidebar-section-label">AI Provider</p>
+          <ProviderSelector
+            provider={provider}
+            model={model}
+            onProviderChange={onProviderChange}
+            onModelChange={onModelChange}
+          />
+        </div>
+
+        {/* Knowledge base section */}
+        <div className="sidebar-section flex-grow-1">
+          <DocumentUploader sessionId={sessionId} onIngested={onIngested} />
+        </div>
+      </div>
+    </div>
   );
 }

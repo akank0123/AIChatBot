@@ -16,13 +16,11 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
   const [showTemp, setShowTemp] = useState(false);
   const textareaRef = useRef(null);
 
-  // Calls useChat hooks - gets messages, streaming flag, sendMessage, stopStreaming
   const { messages, streaming, error, sendMessage, stopStreaming, clearMessages } = useChat(
     sessionId,
     setSessionId
   );
 
-  // Auto-resizes the textarea as user types (grows up to 160px tall)
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -30,7 +28,6 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
     ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
   }, [input]);
 
-  // trims input, calls sendMessage(), clears the input box
   const handleSend = () => {
     const q = input.trim();
     if (!q || streaming) return;
@@ -38,7 +35,6 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
     setInput('');
   };
 
-  // pressing Enter (without Shift) triggers handleSend()
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -55,15 +51,13 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
 
       {/* Error banner */}
       {error && (
-        <div className="error-banner">
-          ⚠ {error}
-        </div>
+        <div className="error-banner">⚠ {error}</div>
       )}
 
-      {/* Example chips — show only when no messages */}
+      {/* Example chips — only when empty */}
       {messages.length === 0 && (
         <div className="example-chips">
-          {EXAMPLE_QUESTIONS.map((q) => (
+          {EXAMPLE_QUESTIONS.map(q => (
             <button key={q} className="example-chip" onClick={() => setInput(q)}>
               {q}
             </button>
@@ -86,26 +80,23 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
           />
 
           <div className="input-actions">
-            {/* Temperature toggle */}
             <button
-              className={`icon-btn ${showTemp ? 'active' : ''}`}
+              className={`icon-btn${showTemp ? ' active' : ''}`}
               onClick={() => setShowTemp(s => !s)}
               title="Temperature"
             >
-              <Thermometer size={16} />
+              <Thermometer size={15} />
             </button>
 
-            {/* Clear */}
             {messages.length > 0 && !streaming && (
               <button className="icon-btn" onClick={clearMessages} title="Clear chat">
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
             )}
 
-            {/* Send / Stop */}
             {streaming ? (
-              <button className="send-btn stop" onClick={stopStreaming} title="Stop">
-                <Square size={16} />
+              <button className="send-btn stop" onClick={stopStreaming} title="Stop generation">
+                <Square size={15} />
               </button>
             ) : (
               <button
@@ -114,7 +105,7 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
                 disabled={!input.trim()}
                 title="Send (Enter)"
               >
-                <Send size={16} />
+                <Send size={15} />
               </button>
             )}
           </div>
@@ -133,44 +124,8 @@ export default function ChatInterface({ sessionId, setSessionId, provider, model
           </div>
         )}
 
-        <p className="input-footer">
-          Press Enter to send, Shift+Enter for new line
-        </p>
+        <p className="input-footer">Press Enter to send · Shift+Enter for new line</p>
       </div>
-
-      <style>{`
-        .chat-interface { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-        .messages-area { flex: 1; overflow-y: auto; }
-        .error-banner { margin: 0 16px 8px; padding: 8px 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; font-size: 13px; color: var(--error); }
-        .example-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
-        .example-chip { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-secondary); font-size: 12px; cursor: pointer; transition: all 0.15s; }
-        .example-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-        .input-bar { border-top: 1px solid var(--border); padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
-        .input-row { display: flex; gap: 8px; align-items: flex-end; }
-        .chat-input {
-          flex: 1; background: var(--bg-tertiary); border: 1px solid var(--border);
-          border-radius: 12px; padding: 10px 14px; color: var(--text-primary);
-          font-size: 14px; outline: none; resize: none; font-family: inherit;
-          line-height: 1.5; max-height: 160px; overflow-y: auto;
-          transition: border-color 0.15s;
-        }
-        .chat-input:focus { border-color: var(--accent); }
-        .chat-input:disabled { opacity: 0.6; }
-        .input-actions { display: flex; align-items: center; gap: 4px; }
-        .icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
-        .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .icon-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
-        .send-btn { width: 34px; height: 34px; border-radius: 8px; border: none; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s; }
-        .send-btn:hover:not(:disabled) { background: var(--accent-hover); }
-        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .send-btn.stop { background: var(--error); }
-        .send-btn.stop:hover { background: #dc2626; }
-        .temp-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
-        .temp-label { font-size: 12px; color: var(--text-secondary); min-width: 110px; }
-        .temp-slider { flex: 1; accent-color: var(--accent); }
-        .temp-hint { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-        .input-footer { font-size: 11px; color: var(--text-muted); text-align: center; }
-      `}</style>
     </div>
   );
 }
